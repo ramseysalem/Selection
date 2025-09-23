@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(__NEW_LINE__ echo \"=== Wardrobe Stats ===\")",
+      "Bash(__NEW_LINE__ echo -e \"\\n\\n=== Wardrobe Items ===\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
