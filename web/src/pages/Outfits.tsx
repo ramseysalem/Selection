@@ -188,7 +188,7 @@ export default function Outfits() {
                       {/* Weather Info */}
                       {outfit.weather_temp && (
                         <div className="text-xs text-gray-400 mb-2">
-                          🌡️ {outfit.weather_temp}°C
+                          🌡️ {outfit.weather_temp}°F
                           {outfit.weather_description && ` • ${outfit.weather_description}`}
                         </div>
                       )}

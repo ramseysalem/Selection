@@ -355,7 +355,9 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 // AI-powered outfit recommendations
 router.post('/recommendations', async (req: AuthRequest, res) => {
   try {
-    const { weather, occasion, userPreferences } = req.body;
+    const { weather, occasion, userPreferences, location } = req.body;
+    
+    console.log('🎯 [RECOMMENDATIONS] Request received:', { weather, occasion, location });
     
     // Get all user's wardrobe items
     const items = await wardrobeStore.findByUserId(req.user!.id);
@@ -365,6 +367,37 @@ router.post('/recommendations', async (req: AuthRequest, res) => {
         recommendations: [],
         message: 'No wardrobe items available for recommendations'
       });
+    }
+
+    // If location is provided but no weather, try to fetch current weather
+    let weatherData = weather;
+    if (!weatherData && location) {
+      try {
+        const { weatherService } = await import('../services/weatherService');
+        if (location.lat && location.lon) {
+          console.log('🌤️ [RECOMMENDATIONS] Fetching weather by coordinates');
+          const currentWeather = await weatherService.getWeatherByCoordinates(location.lat, location.lon);
+          weatherData = {
+            temperature: currentWeather.temperature,
+            description: currentWeather.description,
+            humidity: currentWeather.humidity,
+            windSpeed: currentWeather.windSpeed
+          };
+          console.log(`🌤️ [RECOMMENDATIONS] Current weather: ${weatherData.temperature}°C, ${weatherData.description}`);
+        } else if (location.city) {
+          console.log(`🌤️ [RECOMMENDATIONS] Fetching weather for city: ${location.city}`);
+          const currentWeather = await weatherService.getWeatherByCity(location.city);
+          weatherData = {
+            temperature: currentWeather.temperature,
+            description: currentWeather.description,
+            humidity: currentWeather.humidity,
+            windSpeed: currentWeather.windSpeed
+          };
+          console.log(`🌤️ [RECOMMENDATIONS] Current weather: ${weatherData.temperature}°C, ${weatherData.description}`);
+        }
+      } catch (weatherError) {
+        console.warn('⚠️ [RECOMMENDATIONS] Failed to fetch weather, proceeding without:', weatherError instanceof Error ? weatherError.message : String(weatherError));
+      }
     }
 
     console.log('⚡ Generating hybrid outfit recommendations...');
@@ -389,13 +422,20 @@ router.post('/recommendations', async (req: AuthRequest, res) => {
     // Use hybrid approach: rule-based matching with AI attributes
     const recommendations = hybridOutfitMatcher.generateRecommendations(items, {
       occasion,
-      weather,
+      weather: weatherData,
       formality_preference: userPreferences?.formality_preference,
       color_preferences: userPreferences?.favoriteColors,
       avoid_colors: userPreferences?.avoidColors
     });
 
     console.log('✅ Generated', recommendations.length, 'hybrid recommendations');
+
+    // Add weather context to response
+    const weatherContext = weatherData ? {
+      temperature: weatherData.temperature,
+      description: weatherData.description,
+      suggestion: getWeatherSuggestion(weatherData.temperature, weatherData.description)
+    } : null;
 
     res.json({ 
       recommendations: recommendations.map(rec => ({
@@ -404,6 +444,7 @@ router.post('/recommendations', async (req: AuthRequest, res) => {
         confidence: rec.confidence,
         reasoning: rec.reasoning
       })),
+      weather_context: weatherContext,
       total_items: items.length,
       ai_powered: process.env.OPENAI_API_KEY ? true : false
     });
@@ -424,6 +465,43 @@ function estimateFormalityScore(formality: string): number {
   };
   
   return formalityMap[formality] || 5; // Default to middle
+}
+
+// Helper function for weather-based clothing suggestions
+function getWeatherSuggestion(temperature: number, description: string): string {
+  const desc = description.toLowerCase();
+  
+  // Check for precipitation first
+  if (desc.includes('rain') || desc.includes('drizzle')) {
+    return getBaseTemperatureSuggestion(temperature) + " - don't forget waterproof layers!";
+  }
+  if (desc.includes('snow')) {
+    return "Snowy weather - waterproof boots and warm, layered clothing essential";
+  }
+  
+  // Temperature-based suggestions (Fahrenheit)
+  if (temperature >= 86) {  // 30°C = 86°F
+    return "Very hot weather - consider lightweight, breathable fabrics and light colors";
+  } else if (temperature >= 77) {  // 25°C = 77°F
+    return "Warm weather - perfect for t-shirts, shorts, and light materials";
+  } else if (temperature >= 68) {  // 20°C = 68°F
+    return "Pleasant weather - ideal for most clothing options";
+  } else if (temperature >= 59) {  // 15°C = 59°F
+    return "Mild weather - consider light layers or long sleeves";
+  } else if (temperature >= 50) {  // 10°C = 50°F
+    return "Cool weather - recommend layers and warmer materials";
+  } else if (temperature >= 32) {  // 0°C = 32°F
+    return "Cold weather - dress warmly with multiple layers";
+  } else {
+    return "Very cold weather - heavy coats and warm accessories recommended";
+  }
+}
+
+function getBaseTemperatureSuggestion(temperature: number): string {
+  if (temperature >= 77) return "Warm weather - light and breathable clothing";   // 25°C = 77°F
+  if (temperature >= 59) return "Mild weather - comfortable layering options";    // 15°C = 59°F
+  if (temperature >= 41) return "Cool weather - warm layers recommended";         // 5°C = 41°F
+  return "Cold weather - dress warmly with multiple layers";
 }
 
 export default router;

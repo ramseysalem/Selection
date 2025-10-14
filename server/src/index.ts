@@ -1,12 +1,22 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import { config } from 'dotenv';
 import { userStore } from './models/UserPG';
 import { wardrobeStore } from './models/WardrobeItemPG';
 import { savedOutfitStore } from './models/SavedOutfitPG';
+import { accountSecurity } from './utils/accountSecurity';
+import { emailService, validateEmailConfiguration } from './utils/emailService';
+import { sanitizeRequestBody, sanitizeQueryParams } from './utils/inputSanitization';
 import pool from './db/connection';
+import { 
+  checkBlockedIP, 
+  authLimiter, 
+  uploadLimiter, 
+  apiLimiter, 
+  aiLimiter, 
+  weatherLimiter 
+} from './middleware/rateLimiting';
 
 // Load environment variables
 config();
@@ -15,16 +25,45 @@ config();
 const app = express();
 
 // Security middleware
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false
+}));
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : ['http://localhost:5173', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use('/api', limiter);
+// Request size limits for different types of requests
+app.use('/api/wardrobe/upload', express.json({ limit: '20mb' })); // Image uploads
+app.use('/api/auth', express.json({ limit: '1mb' })); // Auth requests
+app.use(express.json({ limit: '5mb' })); // Default limit
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+
+// Global IP blocking check (must be before other rate limiters)
+app.use(checkBlockedIP);
+
+// Global input sanitization (apply to all routes)
+app.use(sanitizeQueryParams);
+app.use(sanitizeRequestBody);
+
+// Apply different rate limits to different route groups
 
 // Routes will be imported here
 import authRoutes from './routes/auth';
@@ -35,14 +74,14 @@ import aiTestRoutes from './routes/ai-test';
 import batchRoutes from './routes/batch';
 import aiCorrectionRoutes from './routes/ai-correction';
 
-// Use routes
-app.use('/api/auth', authRoutes);
-app.use('/api/wardrobe', wardrobeRoutes);
-app.use('/api/outfits', outfitRoutes);
-app.use('/api/weather', weatherRoutes);
-app.use('/api/ai-test', aiTestRoutes);
-app.use('/api/batch', batchRoutes);
-app.use('/api/ai-correction', aiCorrectionRoutes);
+// Apply specific rate limits to different routes
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/wardrobe', uploadLimiter, wardrobeRoutes); // Has photo uploads
+app.use('/api/outfits', apiLimiter, outfitRoutes);
+app.use('/api/weather', weatherLimiter, weatherRoutes);
+app.use('/api/ai-test', aiLimiter, aiTestRoutes); // AI processing
+app.use('/api/batch', aiLimiter, batchRoutes); // Batch AI processing
+app.use('/api/ai-correction', aiLimiter, aiCorrectionRoutes); // AI processing
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -62,9 +101,30 @@ app.listen(PORT, async () => {
     
     // Initialize database tables
     await savedOutfitStore.initializeTables();
+    await accountSecurity.initializeTables();
+    await emailService.initializeTables();
     
     // Initialize default user for development
     await userStore.createDefaultUser();
+    
+    // Validate email configuration
+    const emailConfig = validateEmailConfiguration();
+    if (emailConfig.isValid) {
+      console.log(`📧 [EMAIL] Provider configured: ${emailConfig.provider}`);
+    } else {
+      console.warn(`⚠️ [EMAIL] Configuration issues with ${emailConfig.provider}:`, emailConfig.errors.join(', '));
+      console.warn('📧 [EMAIL] Falling back to console logging for emails');
+    }
+    
+    // Set up periodic cleanup tasks
+    setInterval(async () => {
+      try {
+        await accountSecurity.cleanup();
+        await emailService.cleanup();
+      } catch (error) {
+        console.error('Cleanup task failed:', error);
+      }
+    }, 6 * 60 * 60 * 1000); // Every 6 hours
   } catch (error) {
     console.error('❌ Database connection failed:', error);
   }

@@ -65,24 +65,69 @@ export default function Home() {
     }
   };
 
-  // Get user's location
+  // Get user's location using browser geolocation
   const getUserLocation = () => {
     if ('geolocation' in navigator) {
       setIsLoadingWeather(true);
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const coords = {
             lat: position.coords.latitude,
             lon: position.coords.longitude
           };
           setCoordinates(coords);
+          
+          // Reverse geocode to get city name
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lon}&zoom=10&addressdetails=1`,
+              {
+                headers: {
+                  'User-Agent': 'OutfitMatcher/1.0'
+                }
+              }
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.address) {
+                const city = data.address.city || 
+                            data.address.town || 
+                            data.address.village || 
+                            data.address.hamlet ||
+                            'Current Location';
+                setLocation(city);
+              }
+            }
+          } catch (error) {
+            console.warn('Reverse geocoding failed:', error);
+            setLocation('Current Location');
+          }
+          
+          // Fetch weather with coordinates
           fetchWeatherByCoordinates(coords.lat, coords.lon);
         },
         (error) => {
           console.error('Geolocation error:', error);
           setIsLoadingWeather(false);
+          
+          let message = 'Unable to get your location.';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              message = 'Location access denied. Please enter your city manually.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              message = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              message = 'Location request timed out.';
+              break;
+          }
+          alert(message);
         }
       );
+    } else {
+      alert('Geolocation is not supported by this browser. Please enter your city manually.');
     }
   };
 
@@ -99,7 +144,7 @@ export default function Home() {
         const data = await response.json();
         setWeather(data.weather);
         setOutfitContext(data.outfitContext);
-        setLocation(`${data.weather.location.name}, ${data.weather.location.country}`);
+        setCoordinates({ lat: data.weather.location.lat, lon: data.weather.location.lon });
       }
     } catch (error) {
       console.error('Weather fetch error:', error);
@@ -133,12 +178,6 @@ export default function Home() {
     }
   };
 
-  // Auto-detect location on component mount
-  useEffect(() => {
-    if (accessToken) {
-      getUserLocation();
-    }
-  }, [accessToken]);
 
   const generateOutfit = async () => {
     if (wardrobeItems.length === 0) return;
@@ -233,7 +272,7 @@ export default function Home() {
           occasion: occasion,
           weather_temp: weather?.temperature,
           weather_description: weather?.description,
-          notes: weather ? `Suggested for ${weather.temperature}°C weather in ${weather.location.name}` : undefined
+          notes: weather ? `Suggested for ${weather.temperature}°F weather in ${weather.location.name}` : undefined
         })
       });
 
@@ -363,11 +402,11 @@ export default function Home() {
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{weather.temperature}°C</div>
+                <div className="text-2xl font-bold text-white">{weather.temperature}°F</div>
                 <div className="text-sm text-gray-400">Temperature</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{weather.feelsLike}°C</div>
+                <div className="text-2xl font-bold text-white">{weather.feelsLike}°F</div>
                 <div className="text-sm text-gray-400">Feels Like</div>
               </div>
               <div className="text-center">
@@ -477,7 +516,7 @@ export default function Home() {
                 <h3 className="text-lg font-semibold text-white mb-2">👖 Bottom</h3>
                 <p className="text-gray-400 text-sm">
                   {weather && outfitContext ? (
-                    <>Ideal for {weather.temperature}°C 
+                    <>Ideal for {weather.temperature}°F 
                     {outfitContext.waterproof && <span> (waterproof recommended)</span>}</>
                   ) : (
                     <>Matches your {location || 'local'} weather</>

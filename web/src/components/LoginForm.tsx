@@ -10,6 +10,10 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showDemo, setShowDemo] = useState(true);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
   
   const { login, isLoading, error, clearError } = useAuthStore();
 
@@ -29,6 +33,34 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
     setEmail('demo@example.com');
     setPassword('password123');
     setShowDemo(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetMessage('');
+    
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setResetMessage('Password reset link sent! Check your email.');
+        setShowForgotPassword(false);
+        setResetEmail('');
+      } else {
+        setResetMessage(data.error || 'Failed to send reset email');
+      }
+    } catch (error) {
+      setResetMessage('Network error. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   return (
@@ -121,6 +153,74 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
           )}
         </button>
       </form>
+
+      {/* Forgot Password Section */}
+      {resetMessage && (
+        <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+          <div className="flex items-center">
+            <span className="text-lg mr-2">📧</span>
+            <p className="text-sm text-blue-300">{resetMessage}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 text-center">
+        <button
+          type="button"
+          onClick={() => setShowForgotPassword(!showForgotPassword)}
+          className="text-sm text-gray-400 hover:text-gray-300 transition-colors"
+        >
+          🔐 Forgot your password?
+        </button>
+      </div>
+
+      {showForgotPassword && (
+        <div className="mt-4 p-4 bg-gray-700/50 rounded-xl border border-gray-600">
+          <h3 className="text-lg font-medium text-white mb-3">Reset Password</h3>
+          <form onSubmit={handleForgotPassword} className="space-y-3">
+            <div>
+              <label htmlFor="resetEmail" className="block text-sm font-medium text-gray-300 mb-2">
+                📧 Enter your email address
+              </label>
+              <input
+                id="resetEmail"
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="Enter your email"
+              />
+            </div>
+            <div className="flex space-x-3">
+              <button
+                type="submit"
+                disabled={resetLoading}
+                className="flex-1 flex justify-center items-center space-x-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {resetLoading ? (
+                  <>
+                    <span>⏳</span>
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>📧</span>
+                    <span>Send Reset Link</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(false)}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-xl text-white transition-all duration-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {onSwitchToRegister && (
         <div className="mt-6 text-center">

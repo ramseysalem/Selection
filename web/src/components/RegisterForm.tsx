@@ -6,14 +6,37 @@ interface RegisterFormProps {
   onSwitchToLogin?: () => void;
 }
 
+interface PasswordRequirement {
+  met: boolean;
+  text: string;
+}
+
 export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [showRequirements, setShowRequirements] = useState(false);
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
   
   const { register, isLoading, error, clearError } = useAuthStore();
+
+  // Real-time password validation
+  const getPasswordRequirements = (pwd: string): PasswordRequirement[] => {
+    return [
+      { met: pwd.length >= 8, text: 'At least 8 characters long' },
+      { met: /[a-z]/.test(pwd), text: 'One lowercase letter (a-z)' },
+      { met: /[A-Z]/.test(pwd), text: 'One uppercase letter (A-Z)' },
+      { met: /\d/.test(pwd), text: 'One number (0-9)' },
+      { met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd), text: 'One special character (!@#$%^&*)' },
+      { met: !/(..).*\1/.test(pwd), text: 'No repeated character patterns' }
+    ];
+  };
+
+  const passwordRequirements = getPasswordRequirements(password);
+  const passwordStrength = passwordRequirements.filter(req => req.met).length;
+  const isPasswordValid = passwordRequirements.every(req => req.met);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,14 +48,18 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
       return;
     }
 
-    if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters long');
+    if (!isPasswordValid) {
+      setPasswordError('Password does not meet security requirements');
       return;
     }
     
     try {
-      await register(email, password, name || undefined);
-      onSuccess?.();
+      const result = await register(email, password, name || undefined);
+      if (result?.verificationEmailSent) {
+        setEmailVerificationSent(true);
+      } else {
+        onSuccess?.();
+      }
     } catch (error) {
       // Error is handled by the store
     }
@@ -47,6 +74,21 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         </h2>
         <p className="text-gray-400 mt-1">Create your style account</p>
       </div>
+
+      {emailVerificationSent && (
+        <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+          <div className="flex items-center mb-2">
+            <span className="text-lg mr-2">📧</span>
+            <p className="text-sm text-green-300 font-medium">
+              Account Created Successfully!
+            </p>
+          </div>
+          <p className="text-xs text-green-200">
+            Please check your email for a verification link to activate your account.
+            The link will expire in 24 hours.
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
@@ -104,11 +146,68 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             id="password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setShowRequirements(e.target.value.length > 0);
+            }}
+            onFocus={() => setShowRequirements(true)}
             required
             className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            placeholder="Enter your password (min 6 characters)"
+            placeholder="Enter a strong password"
           />
+          
+          {/* Password Strength Indicator */}
+          {password && (
+            <div className="mt-2">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="flex-1 bg-gray-700 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      passwordStrength <= 2 ? 'bg-red-500' :
+                      passwordStrength <= 4 ? 'bg-yellow-500' :
+                      passwordStrength === 5 ? 'bg-blue-500' :
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${(passwordStrength / 6) * 100}%` }}
+                  />
+                </div>
+                <span className={`text-xs font-medium ${
+                  passwordStrength <= 2 ? 'text-red-400' :
+                  passwordStrength <= 4 ? 'text-yellow-400' :
+                  passwordStrength === 5 ? 'text-blue-400' :
+                  'text-green-400'
+                }`}>
+                  {passwordStrength <= 2 ? 'Weak' :
+                   passwordStrength <= 4 ? 'Fair' :
+                   passwordStrength === 5 ? 'Good' :
+                   'Strong'}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {/* Password Requirements */}
+          {showRequirements && (
+            <div className="mt-3 p-3 bg-gray-700/50 rounded-xl border border-gray-600">
+              <p className="text-sm font-medium text-gray-300 mb-2">Password Requirements:</p>
+              <div className="space-y-1">
+                {passwordRequirements.map((req, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <span className={`text-sm ${
+                      req.met ? 'text-green-400' : 'text-gray-400'
+                    }`}>
+                      {req.met ? '✅' : '⭕'}
+                    </span>
+                    <span className={`text-xs ${
+                      req.met ? 'text-green-300' : 'text-gray-400'
+                    }`}>
+                      {req.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

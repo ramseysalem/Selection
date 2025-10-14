@@ -5,6 +5,7 @@ interface User {
   id: string;
   email: string;
   name?: string;
+  emailVerified?: boolean;
 }
 
 interface AuthState {
@@ -17,7 +18,7 @@ interface AuthState {
   
   // Actions
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name?: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<any>;
   logout: () => void;
   clearError: () => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
@@ -92,14 +93,28 @@ export const useAuthStore = create<AuthState>()(
 
           const data = await response.json();
           
-          set({
-            user: data.user,
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
+          // If email verification is required, don't set as authenticated
+          if (data.verificationEmailSent) {
+            set({
+              user: null,
+              accessToken: null,
+              refreshToken: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: null,
+            });
+            return data; // Return data so UI can show verification message
+          } else {
+            set({
+              user: data.user,
+              accessToken: data.accessToken,
+              refreshToken: data.refreshToken,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
+            return data;
+          }
         } catch (error) {
           set({
             error: (error as Error).message,

@@ -112,14 +112,13 @@ class HybridOutfitMatcher {
       }
     }
 
-    // Sort by confidence and return top 3
-    const sortedRecommendations = combinations
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 3);
+    // Sort by confidence and return top 3 recommendations
+    combinations.sort((a, b) => b.confidence - a.confidence);
+    const topRecommendations = combinations.slice(0, 3);
 
-    console.log(`🎯 [HYBRID] Generated ${sortedRecommendations.length} high-quality recommendations`);
+    console.log(`🎯 [HYBRID] Generated ${topRecommendations.length} recommendations`);
     
-    return sortedRecommendations;
+    return topRecommendations;
   }
 
   private evaluateOutfitCombination(

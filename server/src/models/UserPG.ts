@@ -6,6 +6,8 @@ export interface User {
   email: string;
   password: string;
   name?: string;
+  email_verified?: boolean;
+  email_verified_at?: Date;
   createdAt: Date;
 }
 
@@ -23,7 +25,7 @@ class UserStore {
     const query = `
       INSERT INTO users (email, password_hash, name) 
       VALUES ($1, $2, $3) 
-      RETURNING id, email, password_hash as password, name, created_at as "createdAt"
+      RETURNING id, email, password_hash as password, name, email_verified, email_verified_at, created_at as "createdAt"
     `;
     
     const values = [userData.email, hashedPassword, userData.name || null];
@@ -34,7 +36,7 @@ class UserStore {
 
   async findByEmail(email: string): Promise<User | null> {
     const query = `
-      SELECT id, email, password_hash as password, name, created_at as "createdAt" 
+      SELECT id, email, password_hash as password, name, email_verified, email_verified_at, created_at as "createdAt" 
       FROM users 
       WHERE email = $1
     `;
@@ -45,7 +47,7 @@ class UserStore {
 
   async findById(id: string): Promise<User | null> {
     const query = `
-      SELECT id, email, password_hash as password, name, created_at as "createdAt" 
+      SELECT id, email, password_hash as password, name, email_verified, email_verified_at, created_at as "createdAt" 
       FROM users 
       WHERE id = $1
     `;
@@ -77,7 +79,7 @@ class UserStore {
       UPDATE users 
       SET ${setParts.join(', ')} 
       WHERE id = $${paramCount} 
-      RETURNING id, email, password_hash as password, name, created_at as "createdAt"
+      RETURNING id, email, password_hash as password, name, email_verified, email_verified_at, created_at as "createdAt"
     `;
 
     const result = await pool.query(query, values);
@@ -86,6 +88,15 @@ class UserStore {
 
   async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
+  }
+
+  async updatePassword(userId: string, newPassword: string): Promise<void> {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [hashedPassword, userId]
+    );
   }
 
   // For development - create a default user
