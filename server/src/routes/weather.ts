@@ -5,6 +5,12 @@ import { weatherService } from '../services/weatherService';
 
 const router = express.Router();
 
+// Debug middleware to see all requests
+router.use((req, res, next) => {
+  console.log(`🌐 [WEATHER_DEBUG] Incoming request: ${req.method} ${req.path} with query:`, req.query);
+  next();
+});
+
 // Apply authentication to weather routes
 router.use(verifyToken);
 
@@ -51,10 +57,13 @@ router.get('/coordinates', async (req: AuthRequest, res) => {
 // Get weather by city name
 router.get('/city', async (req: AuthRequest, res) => {
   try {
+    console.log(`🔍 [WEATHER_REQUEST] User requested weather for: "${req.query.city}"`);
     const { city } = citySchema.parse(req.query);
 
     const weather = await weatherService.getWeatherByCity(city);
     const context = weatherService.getOutfitWeatherContext(weather);
+
+    console.log(`📊 [WEATHER_RESULT] ${city}: ${weather.temperature}°F, ${context.temperature} (${context.layers} layers)`);
 
     res.json({
       weather,

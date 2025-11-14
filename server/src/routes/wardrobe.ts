@@ -115,14 +115,28 @@ router.get('/stats', async (req: AuthRequest, res) => {
 });
 
 // Add new wardrobe item with photo upload and AI analysis
-router.post('/', upload.single('image'), async (req: AuthRequest, res) => {
+router.post('/items', upload.single('image'), async (req: AuthRequest, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Image file is required' });
     }
 
-    // Parse user input (now simplified - mainly just name)
-    const userInput = JSON.parse(req.body.data || '{}');
+    console.log('📤 [UPLOAD] Processing item upload:', {
+      filename: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+
+    // Parse user input with enhanced metadata
+    const userInput = {
+      name: req.body.name || req.file.originalname.replace(/\.[^/.]+$/, ""),
+      category: req.body.category || 'tops',
+      brand: req.body.brand,
+      size: req.body.size,
+      cost: req.body.cost ? parseFloat(req.body.cost) : undefined,
+      purchaseDate: req.body.purchaseDate,
+      tags: req.body.tags ? JSON.parse(req.body.tags) : []
+    };
     
     try {
       // Use AI to analyze the image
@@ -131,19 +145,26 @@ router.post('/', upload.single('image'), async (req: AuthRequest, res) => {
       
       // Combine AI analysis with user input (user input takes precedence if provided)
       const itemData = {
-        name: userInput.name || aiAnalysis.description,
-        category: userInput.category || aiAnalysis.category,
-        subcategory: userInput.subcategory || aiAnalysis.subcategory,
-        color_primary: userInput.color_primary || aiAnalysis.color_primary,
-        color_secondary: userInput.color_secondary || aiAnalysis.color_secondary,
-        material: userInput.material || aiAnalysis.material,
-        season: userInput.season || aiAnalysis.season,
-        occasion: userInput.occasion || aiAnalysis.occasion,
-        tags: userInput.tags || [aiAnalysis.formality, `ai-confidence-${Math.round(aiAnalysis.confidence * 100)}%`],
-        is_favorite: userInput.is_favorite || false,
+        name: userInput.name,
+        category: userInput.category,
+        color_primary: aiAnalysis?.color_primary || '#000000',
+        color_secondary: aiAnalysis?.color_secondary,
+        material: aiAnalysis?.material,
+        season: aiAnalysis?.season || [Season.ALL_SEASONS],
+        occasion: aiAnalysis?.occasion || [Occasion.CASUAL],
+        tags: [
+          ...userInput.tags,
+          ...(aiAnalysis ? [`ai-analyzed`, `confidence-${Math.round(aiAnalysis.confidence * 100)}%`] : []),
+          ...(aiAnalysis ? [aiAnalysis.formality] : [])
+        ],
+        is_favorite: false,
         brand: userInput.brand,
         size: userInput.size,
-        notes: userInput.notes || `AI Analysis: ${aiAnalysis.description} (${Math.round(aiAnalysis.confidence * 100)}% confidence)`
+        cost: userInput.cost,
+        purchase_date: userInput.purchaseDate ? new Date(userInput.purchaseDate) : null,
+        notes: aiAnalysis ? 
+          `AI Analysis: ${aiAnalysis.description} (Formality: ${aiAnalysis.formality}, Confidence: ${Math.round(aiAnalysis.confidence * 100)}%)` 
+          : 'Added via bulk upload'
       };
 
       console.log('✅ AI Analysis complete:', {
@@ -204,18 +225,22 @@ router.post('/', upload.single('image'), async (req: AuthRequest, res) => {
     } catch (aiError) {
       console.warn('⚠️ AI analysis failed, falling back to manual input:', aiError);
       
+      // Create fallback data structure when AI fails
+      const fallbackData = {
+        ...userInput,
+        color_primary: '#000000', // Default fallback color
+        season: [Season.ALL_SEASONS],
+        occasion: [Occasion.CASUAL]
+      };
+      
       // Ensure required fields are present for bulk uploads when AI fails
-      if (!userInput.category) {
-        userInput.category = ClothingCategory.TOPS; // Default fallback
+      if (!fallbackData.category) {
+        fallbackData.category = ClothingCategory.TOPS; // Default fallback
         console.warn('⚠️ No category provided in manual input, using default: TOPS');
-      }
-      if (!userInput.color_primary) {
-        userInput.color_primary = '#000000'; // Default fallback
-        console.warn('⚠️ No color_primary provided in manual input, using default: #000000');
       }
       
       // Fallback to manual input if AI fails
-      const validatedData = createWardrobeItemSchema.parse(userInput);
+      const validatedData = createWardrobeItemSchema.parse(fallbackData);
 
       const newItem = await wardrobeStore.create({
         ...validatedData,

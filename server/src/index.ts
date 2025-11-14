@@ -82,6 +82,7 @@ app.use('/api/weather', weatherLimiter, weatherRoutes);
 app.use('/api/ai-test', aiLimiter, aiTestRoutes); // AI processing
 app.use('/api/batch', aiLimiter, batchRoutes); // Batch AI processing
 app.use('/api/ai-correction', aiLimiter, aiCorrectionRoutes); // AI processing
+app.use('/api/usage', apiLimiter, require('./routes/usage').default); // Usage tracking
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

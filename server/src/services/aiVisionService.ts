@@ -7,9 +7,17 @@ interface ClothingAnalysis {
   color_primary: string;
   color_secondary?: string;
   material?: string;
+  fabric_weight?: 'lightweight' | 'medium' | 'heavy';
+  texture?: 'smooth' | 'textured' | 'structured' | 'knit';
   formality: 'casual' | 'business' | 'formal' | 'athletic';
+  formality_score?: number;
   season: Season[];
   occasion: Occasion[];
+  style_details?: {
+    fit?: 'fitted' | 'regular' | 'relaxed' | 'oversized';
+    sleeve_type?: 'long' | 'short' | 'sleeveless' | 'three_quarter';
+    collar_type?: 'crew' | 'v_neck' | 'button_down' | 'polo' | 'no_collar';
+  };
   description: string;
   confidence: number;
 }
@@ -53,15 +61,15 @@ class AIVisionService {
             content: [
               {
                 type: "text",
-                text: `You are a professional fashion expert. Analyze this clothing item image with EXTREME PRECISION and return accurate JSON.
+                text: `You are a MASTER FASHION STYLIST with expertise in garment construction, textile science, and style theory. Analyze this clothing item with EXPERT-LEVEL PRECISION.
 
-STEP 1: IDENTIFY THE GARMENT TYPE
-Ask yourself: "What am I looking at?"
-- Does this cover the upper body (chest, shoulders, arms)? → TOPS
-- Does this cover the lower body (waist, hips, legs)? → BOTTOMS  
-- Does this go over other clothes for warmth/weather? → OUTERWEAR
-- Does this go on feet? → FOOTWEAR
-- Is this an add-on item (jewelry, belts, bags, etc)? → ACCESSORIES
+STEP 1: IDENTIFY THE GARMENT TYPE & FUNCTION
+Ask yourself: "What am I looking at and how is it worn?"
+- Upper body coverage (chest, shoulders, arms)? → TOPS
+- Lower body coverage (waist, hips, legs)? → BOTTOMS  
+- Outer layer for warmth/weather? → OUTERWEAR
+- Footwear? → FOOTWEAR
+- Add-on accessory? → ACCESSORIES
 
 STEP 2: SUBCATEGORY - USE EXACT ENUM VALUES
 OUTERWEAR: coats, jackets, blazers, hoodies, sweaters, cardigans
@@ -70,61 +78,103 @@ BOTTOMS: jeans, pants, shorts, skirts, leggings, dress_pants
 FOOTWEAR: sneakers, dress_shoes, boots, sandals, heels, flats
 ACCESSORIES: belts, hats, bags, jewelry, scarves, watches
 
-STEP 3: COLOR ANALYSIS - BE EXTREMELY PRECISE
-Study the actual fabric color in the image:
-- Pure white = #FFFFFF
-- Off-white/cream = #F5F5DC
-- Pure black = #000000
-- Navy blue = #000080
-- Light blue = #ADD8E6
-- Royal blue = #4169E1
-- Red = #FF0000
-- Dark red/burgundy = #800020
-- Gray = #808080
-- Dark gray = #696969
-- Light gray = #D3D3D3
-- Green = #008000
-- Brown = #8B4513
-- Beige = #F5F5DC
-- Yellow = #FFFF00
-- Pink = #FFC0CB
-- Purple = #800080
+STEP 3: FABRIC & TEXTURE ANALYSIS
+Study the material properties visible in the image:
+FABRIC WEIGHT: lightweight (chiffon, silk), medium (cotton, wool), heavy (denim, tweed)
+TEXTURE: smooth (silk, satin), textured (knit, corduroy), structured (blazer, suit)
+SHINE: matte, slight sheen, high shine/satin, metallic
+WEAVE: tight weave (dress shirt), loose weave (knit), no visible weave (leather)
 
-STEP 4: FORMALITY ANALYSIS - DETAILED RULES
-ATHLETIC (score 1-2): gym shorts, athletic shirts, workout gear, sneakers, sports jerseys
-CASUAL (score 3-5): t-shirts, jeans, casual shorts, hoodies, casual sneakers, tank tops
-BUSINESS (score 6-8): button-up shirts, dress shirts, polo shirts, dress pants, khakis, blazers
-FORMAL (score 9-10): suits, ties, formal dresses, evening wear, dress shoes, formal jackets
+MATERIAL IDENTIFICATION:
+- COTTON: Crisp or soft, natural drape, visible weave
+- DENIM: Heavy cotton, visible diagonal weave, sturdy
+- WOOL: Soft texture, natural drape, may have visible fibers
+- SILK: Smooth, lustrous, fluid drape
+- POLYESTER: Smooth, sometimes shiny, holds shape
+- LINEN: Natural texture, wrinkle-prone, loose weave
+- LEATHER: Smooth or textured surface, structured
+- KNIT: Stretchy appearance, ribbed or smooth texture
 
-EXAMPLES:
-• White button-up shirt = business formality + #FFFFFF color
-• Blue jeans = casual formality + appropriate blue hex
-• Black dress pants = business formality + #000000 color
-• Gray athletic shorts = athletic formality + gray hex
-• Red polo shirt = business formality + red hex
+STEP 4: COLOR ANALYSIS - PRECISE HEX MATCHING
+Study the ACTUAL fabric color in the image:
+NEUTRALS: #FFFFFF (pure white), #F5F5DC (cream), #000000 (black), #696969 (charcoal), #D3D3D3 (light gray), #8B4513 (brown), #F5DEB3 (wheat/beige)
+BLUES: #000080 (navy), #4169E1 (royal blue), #ADD8E6 (light blue), #87CEEB (sky blue), #1E90FF (dodger blue)
+REDS: #FF0000 (red), #800020 (burgundy), #DC143C (crimson), #B22222 (firebrick)
+GREENS: #008000 (green), #006400 (dark green), #228B22 (forest), #90EE90 (light green)
+OTHERS: #FFFF00 (yellow), #FFC0CB (pink), #800080 (purple), #FFA500 (orange)
+
+STEP 5: ADVANCED FORMALITY SCORING (1-10 scale)
+ATHLETIC (1-2): Performance fabrics, logos, sporty cuts, technical details
+CASUAL (3-4): Relaxed fits, casual fabrics (t-shirt cotton, denim), everyday wear
+SMART CASUAL (5-6): Clean lines, quality fabrics, polished but relaxed (polo, chinos)
+BUSINESS (7-8): Structured, professional fabrics (dress shirt cotton, wool), office-appropriate
+FORMAL (9-10): Luxury fabrics, evening wear, suits, formal construction
+
+FORMALITY INDICATORS:
+- CASUAL: Distressed details, logos, oversized fits, athletic materials
+- BUSINESS: Collar, buttons, structured shoulders, crisp fabrics, tailored fit
+- FORMAL: Fine materials, elegant drape, evening-appropriate, luxury details
+
+STEP 6: SEASONAL APPROPRIATENESS
+FABRIC WEIGHT determines season:
+- SUMMER: Lightweight (linen, cotton gauze, silk), breathable
+- WINTER: Heavy (wool, fleece, thick knits), insulating
+- TRANSITIONAL: Medium weight (cotton, light wool)
+- ALL-SEASON: Versatile weight and material
+
+STEP 7: STYLE DETAILS & CONSTRUCTION
+Note specific design elements:
+- COLLAR TYPE: crew neck, V-neck, button-down, no collar
+- SLEEVE TYPE: long, short, sleeveless, three-quarter
+- FIT: fitted, regular, relaxed, oversized
+- CLOSURE: buttons, zipper, pullover, wrap
+- HEM: straight, curved, raw, finished
+- SPECIAL FEATURES: pockets, pleats, patterns, hardware
 
 Return JSON in this EXACT format:
 {
   "category": "outerwear|tops|bottoms|footwear|accessories",
-  "subcategory": "MUST USE EXACT ENUM: tee_shirts|button_ups|polo_shirts|tank_tops|sweatshirts|blouses|jeans|pants|shorts|skirts|leggings|dress_pants|coats|jackets|blazers|hoodies|sweaters|cardigans|sneakers|dress_shoes|boots|sandals|heels|flats|belts|hats|bags|jewelry|scarves|watches",
-  "color_primary": "exact hex code from color list above",
+  "subcategory": "EXACT ENUM: tee_shirts|button_ups|polo_shirts|tank_tops|sweatshirts|blouses|jeans|pants|shorts|skirts|leggings|dress_pants|coats|jackets|blazers|hoodies|sweaters|cardigans|sneakers|dress_shoes|boots|sandals|heels|flats|belts|hats|bags|jewelry|scarves|watches",
+  "color_primary": "exact hex code from expanded color list above",
   "color_secondary": "hex code of secondary color or null",
-  "material": "cotton|denim|wool|polyester|silk|leather|nylon|spandex|linen|cashmere",
+  "material": "cotton|denim|wool|polyester|silk|leather|nylon|spandex|linen|cashmere|knit|fleece",
+  "fabric_weight": "lightweight|medium|heavy",
+  "texture": "smooth|textured|structured|knit",
   "formality": "athletic|casual|business|formal",
+  "formality_score": 1-10,
   "season": ["spring", "summer", "fall", "winter", "all_seasons"],
   "occasion": ["casual", "work", "formal", "party", "sports", "date"],
-  "description": "detailed description with actual colors and style",
+  "style_details": {
+    "fit": "fitted|regular|relaxed|oversized",
+    "sleeve_type": "long|short|sleeveless|three_quarter",
+    "collar_type": "crew|v_neck|button_down|polo|no_collar"
+  },
+  "description": "detailed description including fabric texture, weight, and style details",
   "confidence": 0.85
 }
 
+FASHION EXPERT EXAMPLES:
+• Crisp white button-up shirt = business formality (7), cotton material, structured texture, fitted/regular fit
+• Distressed blue jeans = casual formality (3), denim material, heavy weight, relaxed fit
+• Charcoal wool blazer = business/formal (8), wool material, structured texture, fitted
+• Athletic mesh shorts = athletic formality (1), polyester/nylon, lightweight, relaxed fit
+• Silk blouse = business formality (7), silk material, smooth texture, regular fit
+
 CRITICAL ACCURACY REQUIREMENTS:
+✓ ANALYZE FABRIC TEXTURE visible in the image (knit vs woven vs structured)
+✓ ASSESS FABRIC WEIGHT from visual cues (drape, thickness, stiffness)
+✓ EVALUATE CONSTRUCTION QUALITY (cheap vs well-made affects formality)
+✓ CONSIDER FIT (oversized hoodie ≠ tailored blazer even if same material)
 ✓ PANTS/TROUSERS/JEANS = "bottoms" category (NOT tops!)
 ✓ SHIRTS/BLOUSES/TOPS = "tops" category (NOT bottoms!)
-✓ Look at ACTUAL color in image, not assumed color
-✓ White dress shirt = #FFFFFF + business formality
-✓ Confidence should be 0.85-0.95 for clear, well-lit images
+✓ Look at ACTUAL color, texture, and construction details
+✓ Formality score must match visual evidence of quality and styling
 
-DOUBLE-CHECK: Does this item go on the upper body or lower body? Category must match!`
+DOUBLE-CHECK FASHION LOGIC:
+- Does this look like it belongs in a gym? → athletic (1-2)
+- Would this work in a casual coffee shop? → casual (3-4) 
+- Could this work in a business office? → business (7-8)
+- Would this work at a formal dinner? → formal (9-10)`
               },
               {
                 type: "image_url",

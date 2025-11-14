@@ -19,6 +19,8 @@ export interface WardrobeItem {
   purchase_price?: number;
   care_instructions?: string;
   notes?: string;
+  wear_count?: number;
+  last_worn_date?: string;
   created_at: string;
   updated_at: string;
 }

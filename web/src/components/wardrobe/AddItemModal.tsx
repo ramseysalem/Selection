@@ -90,7 +90,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, editingItem }
         name: itemName.trim()
       }));
 
-      const url = editingItem ? `/api/wardrobe/${editingItem.id}` : '/api/wardrobe';
+      const url = editingItem ? `/api/wardrobe/${editingItem.id}` : '/api/wardrobe/items';
       const method = editingItem ? 'PUT' : 'POST';
 
       const response = await fetch(url, {

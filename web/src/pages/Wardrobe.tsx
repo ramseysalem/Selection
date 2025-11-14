@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import { WardrobeItem, ClothingCategory, CLOTHING_CATEGORIES } from '../types/wardrobe';
 import AddItemModal from '../components/wardrobe/AddItemModal';
 import WardrobeItemCard from '../components/wardrobe/WardrobeItemCard';
+import BulkUpload from '../components/BulkUpload';
 
 export default function Wardrobe() {
   const [items, setItems] = useState<WardrobeItem[]>([]);
@@ -22,6 +23,7 @@ export default function Wardrobe() {
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchStats, setBatchStats] = useState<any>(null);
   const [error, setError] = useState<string>();
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   
   const { accessToken } = useAuthStore();
 
@@ -136,7 +138,7 @@ export default function Wardrobe() {
       if (data.success) {
         setBatchStats(data.stats);
         console.log('✅ Batch processing completed:', data.stats);
-        await fetchItems(); // Refresh items to show AI analysis
+        await fetchWardrobeData(); // Refresh items to show AI analysis
       } else {
         throw new Error(data.error || 'Batch processing failed');
       }
@@ -157,14 +159,17 @@ export default function Wardrobe() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
-      // Let AI analyze each image without hardcoded defaults
+      // Create a basic wardrobe item for each image
       try {
         const formData = new FormData();
         formData.append('image', file);
         formData.append('data', JSON.stringify({
           name: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension
-          tags: ['bulk-upload']
-          // Remove hardcoded category, color_primary, occasion, season to allow AI analysis
+          category: ClothingCategory.TOPS, // Default category
+          color_primary: '#000000', // Default color
+          tags: ['bulk-upload'],
+          occasion: [],
+          season: []
         }));
 
         await fetch('/api/wardrobe', {
@@ -307,15 +312,8 @@ export default function Wardrobe() {
                     <span>{batchProcessing ? 'Analyzing...' : 'AI Analyze All'}</span>
                   </button>
                   <button 
-                    onClick={() => {
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.multiple = true;
-                      input.accept = 'image/*';
-                      input.onchange = handleBulkUpload;
-                      input.click();
-                    }}
-                    className="bg-gray-700/80 hover:bg-gray-600/80 text-white px-8 py-3 rounded-xl font-medium transition-all duration-200 border border-gray-600 flex items-center space-x-2"
+                    onClick={() => setIsBulkUploadOpen(true)}
+                    className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-8 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 flex items-center space-x-2"
                   >
                     <span>📁</span>
                     <span>Bulk Upload</span>
@@ -375,14 +373,7 @@ export default function Wardrobe() {
                     )}
 
                     <button 
-                      onClick={() => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.multiple = true;
-                        input.accept = 'image/*';
-                        input.onchange = handleBulkUpload;
-                        input.click();
-                      }}
+                      onClick={() => setIsBulkUploadOpen(true)}
                       className="bg-gray-700/50 hover:bg-gray-600/50 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 border border-gray-600 flex items-center space-x-2"
                     >
                       <span>📁</span>
@@ -463,6 +454,17 @@ export default function Wardrobe() {
         onSuccess={handleAddSuccess}
         editingItem={editingItem}
       />
+
+      {/* Bulk Upload Modal */}
+      {isBulkUploadOpen && (
+        <BulkUpload 
+          onUploadComplete={() => {
+            setIsBulkUploadOpen(false);
+            fetchWardrobeData();
+          }}
+          onClose={() => setIsBulkUploadOpen(false)}
+        />
+      )}
     </div>
   );
 }

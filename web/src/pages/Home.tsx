@@ -65,69 +65,24 @@ export default function Home() {
     }
   };
 
-  // Get user's location using browser geolocation
+  // Get user's location
   const getUserLocation = () => {
     if ('geolocation' in navigator) {
       setIsLoadingWeather(true);
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
+        (position) => {
           const coords = {
             lat: position.coords.latitude,
             lon: position.coords.longitude
           };
           setCoordinates(coords);
-          
-          // Reverse geocode to get city name
-          try {
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lon}&zoom=10&addressdetails=1`,
-              {
-                headers: {
-                  'User-Agent': 'OutfitMatcher/1.0'
-                }
-              }
-            );
-            
-            if (response.ok) {
-              const data = await response.json();
-              if (data.address) {
-                const city = data.address.city || 
-                            data.address.town || 
-                            data.address.village || 
-                            data.address.hamlet ||
-                            'Current Location';
-                setLocation(city);
-              }
-            }
-          } catch (error) {
-            console.warn('Reverse geocoding failed:', error);
-            setLocation('Current Location');
-          }
-          
-          // Fetch weather with coordinates
           fetchWeatherByCoordinates(coords.lat, coords.lon);
         },
         (error) => {
           console.error('Geolocation error:', error);
           setIsLoadingWeather(false);
-          
-          let message = 'Unable to get your location.';
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              message = 'Location access denied. Please enter your city manually.';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              message = 'Location information is unavailable.';
-              break;
-            case error.TIMEOUT:
-              message = 'Location request timed out.';
-              break;
-          }
-          alert(message);
         }
       );
-    } else {
-      alert('Geolocation is not supported by this browser. Please enter your city manually.');
     }
   };
 
@@ -144,7 +99,7 @@ export default function Home() {
         const data = await response.json();
         setWeather(data.weather);
         setOutfitContext(data.outfitContext);
-        setCoordinates({ lat: data.weather.location.lat, lon: data.weather.location.lon });
+        setLocation(`${data.weather.location.name}, ${data.weather.location.country}`);
       }
     } catch (error) {
       console.error('Weather fetch error:', error);
@@ -178,113 +133,173 @@ export default function Home() {
     }
   };
 
+  // Auto-detect location on component mount
+  useEffect(() => {
+    if (accessToken) {
+      getUserLocation();
+    }
+  }, [accessToken]);
+
+  // Enhanced fashion validation function using AI analysis data
+  const isValidFashionPairing = (top: WardrobeItem, bottom: WardrobeItem, occasion: string, context: OutfitContext | null) => {
+    const topName = top.name.toLowerCase();
+    const bottomName = bottom.name.toLowerCase();
+    
+    // Rule 1: Enhanced Formality Mismatch Prevention
+    const isFormalTop = ['dress shirt', 'button-up', 'blouse', 'blazer', 'suit jacket'].some(term => topName.includes(term));
+    const isCasualBottom = ['shorts', 'athletic', 'gym', 'sweat'].some(term => bottomName.includes(term));
+    const isFormalBottom = ['dress pants', 'trousers', 'slacks', 'suit pants'].some(term => bottomName.includes(term));
+    const isCasualTop = ['t-shirt', 'tank', 'casual', 'athletic', 'gym'].some(term => topName.includes(term));
+    
+    // Prevent: Formal top + Casual bottom (e.g., dress shirt + shorts)
+    if (isFormalTop && isCasualBottom) return false;
+    
+    // Prevent: Casual top + Very formal bottom
+    if (isCasualTop && bottomName.includes('suit')) return false;
+    
+    // Rule 1.5: Fabric Weight Mismatch Prevention
+    const isHeavyTop = ['wool', 'sweater', 'hoodie', 'fleece', 'thick'].some(term => topName.includes(term));
+    const isLightBottom = ['shorts', 'linen', 'silk', 'chiffon'].some(term => bottomName.includes(term));
+    
+    // Prevent heavy winter top with summer bottom (unless mild weather)
+    if (isHeavyTop && isLightBottom && context?.temperature !== 'mild') return false;
+    
+    // Rule 2: Occasion Appropriateness
+    if (occasion === 'formal' || occasion === 'work') {
+      // For formal occasions, avoid shorts completely
+      if (bottomName.includes('shorts')) return false;
+      // Prefer at least business casual tops
+      if (topName.includes('tank') || topName.includes('crop')) return false;
+    }
+    
+    // Rule 3: Weather vs. Style Balance
+    if (context?.temperature === 'hot' && occasion === 'formal') {
+      // Hot + Formal = lightweight formal pieces, not shorts
+      if (bottomName.includes('shorts')) return false;
+      // Prefer breathable formal options like linen pants, lightweight trousers
+    }
+    
+    // Rule 4: Texture/Season Mismatch
+    const isWinterTop = ['sweater', 'hoodie', 'fleece', 'wool'].some(term => topName.includes(term));
+    const isSummerBottom = ['shorts', 'linen'].some(term => bottomName.includes(term));
+    
+    // Prevent: Heavy winter top + summer bottom
+    if (isWinterTop && isSummerBottom && context?.temperature !== 'mild') return false;
+    
+    // Rule 5: Athletic Mismatch
+    const isAthleticTop = ['athletic', 'workout', 'gym', 'sports'].some(term => topName.includes(term));
+    const isDressyBottom = ['dress pants', 'trousers', 'formal'].some(term => bottomName.includes(term));
+    
+    if (isAthleticTop && isDressyBottom) return false;
+    
+    return true; // Pairing passes all validation rules
+  };
 
   const generateOutfit = async () => {
     if (wardrobeItems.length === 0) return;
     
     setIsGenerating(true);
 
-    try {
-      console.log('🤖 Requesting AI outfit recommendations...');
-      
-      // Use AI-powered recommendations
-      const response = await fetch('/api/wardrobe/recommendations', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          weather: weather ? {
-            temperature: weather.temperature,
-            description: weather.description
-          } : undefined,
-          occasion: occasion,
-          userPreferences: {
-            // Could add user color preferences here
-          }
-        })
-      });
+    // Filter out items worn in the last 3 days
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const availableItems = wardrobeItems.filter(item => {
+      if (!item.last_worn_date) return true; // Never worn items are available
+      const lastWorn = new Date(item.last_worn_date);
+      return lastWorn < threeDaysAgo;
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Received', data.recommendations.length, 'AI recommendations');
-        
-        if (data.recommendations.length > 0) {
-          // Use the first (best) recommendation
-          const bestRecommendation = data.recommendations[0];
-          setSuggestedTop(bestRecommendation.top);
-          setSuggestedBottom(bestRecommendation.bottom);
-          
-          // Log AI reasoning for debugging
-          console.log('🎯 AI Reasoning:', bestRecommendation.reasoning);
-        } else {
-          // Fallback to basic selection if no AI recommendations
-          console.warn('No AI recommendations available, using fallback');
-          fallbackOutfitSelection();
-        }
-      } else {
-        console.warn('AI recommendations failed, using fallback');
-        fallbackOutfitSelection();
-      }
-    } catch (error) {
-      console.error('Error getting AI recommendations:', error);
-      fallbackOutfitSelection();
-    }
-
-    setIsGenerating(false);
-  };
-
-  // Fallback method for when AI is unavailable
-  const fallbackOutfitSelection = () => {
-    const tops = wardrobeItems.filter(item => 
+    // Filter items by category from available items
+    const tops = availableItems.filter(item => 
       item.category === ClothingCategory.TOPS || 
       item.category === ClothingCategory.OUTERWEAR
     );
-    const bottoms = wardrobeItems.filter(item => 
+    const bottoms = availableItems.filter(item => 
       item.category === ClothingCategory.BOTTOMS
     );
 
-    if (tops.length > 0) {
-      setSuggestedTop(tops[Math.floor(Math.random() * tops.length)]);
-    }
-    if (bottoms.length > 0) {
-      setSuggestedBottom(bottoms[Math.floor(Math.random() * bottoms.length)]);
-    }
-  };
+    // Weather-aware outfit selection
+    let filteredTops = tops;
+    let filteredBottoms = bottoms;
 
-  const handleSaveOutfit = async () => {
-    if (!suggestedTop || !suggestedBottom || !accessToken) return;
-
-    const outfitName = `${selectedOccasion?.label || 'Custom'} Outfit ${new Date().toLocaleDateString()}`;
-
-    try {
-      const response = await fetch('/api/outfits', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: outfitName,
-          top_item_id: suggestedTop.id,
-          bottom_item_id: suggestedBottom.id,
-          occasion: occasion,
-          weather_temp: weather?.temperature,
-          weather_description: weather?.description,
-          notes: weather ? `Suggested for ${weather.temperature}°F weather in ${weather.location.name}` : undefined
-        })
+    if (outfitContext) {
+      // Filter based on weather context
+      filteredTops = tops.filter(item => {
+        // Prefer outerwear for cooler temperatures or when layers are needed
+        if (outfitContext.layers === 'heavy' || outfitContext.layers === 'medium') {
+          return item.category === ClothingCategory.OUTERWEAR || 
+                 (item.category === ClothingCategory.TOPS && ['sweater', 'hoodie', 'jacket'].some(type => 
+                   item.name.toLowerCase().includes(type)
+                 ));
+        }
+        
+        // Prefer light tops for warm weather
+        if (outfitContext.temperature === 'hot' || outfitContext.temperature === 'warm') {
+          return item.category === ClothingCategory.TOPS && 
+                 !['sweater', 'hoodie', 'jacket'].some(type => 
+                   item.name.toLowerCase().includes(type)
+                 );
+        }
+        
+        return true;
       });
 
-      if (response.ok) {
-        alert(`✅ Outfit "${outfitName}" saved successfully! Check the Outfits page to view it.`);
-      } else {
-        throw new Error('Failed to save outfit');
-      }
-    } catch (error) {
-      console.error('Error saving outfit:', error);
-      alert('❌ Failed to save outfit. Please try again.');
+      // Filter bottoms based on occasion and weather with smart prioritization
+      filteredBottoms = bottoms.filter(item => {
+        const itemName = item.name.toLowerCase();
+        
+        // Formal occasions always override weather preferences for bottoms
+        if (occasion === 'formal' || occasion === 'work') {
+          return ['pants', 'trousers', 'dress', 'slacks', 'chinos'].some(type => 
+            itemName.includes(type)
+          ) && !itemName.includes('shorts'); // Explicitly exclude shorts for formal
+        }
+        
+        // For hot weather in casual settings, prefer shorts
+        if (outfitContext.temperature === 'hot' && occasion === 'casual') {
+          return itemName.includes('shorts') || 
+                 itemName.includes('skirt') ||
+                 itemName.includes('linen'); // Include breathable fabrics
+        }
+        
+        return true;
+      });
     }
+
+    // Fallback to original arrays if filtering results in empty arrays
+    if (filteredTops.length === 0) filteredTops = tops;
+    if (filteredBottoms.length === 0) filteredBottoms = bottoms;
+
+    // Smart pairing algorithm to prevent fashion disasters
+    const generateSmartPairing = () => {
+      if (filteredTops.length === 0 || filteredBottoms.length === 0) return;
+
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (attempts < maxAttempts) {
+        const selectedTop = filteredTops[Math.floor(Math.random() * filteredTops.length)];
+        const selectedBottom = filteredBottoms[Math.floor(Math.random() * filteredBottoms.length)];
+        
+        // Fashion validation: Check if this pairing makes sense
+        if (isValidFashionPairing(selectedTop, selectedBottom, occasion, outfitContext)) {
+          setSuggestedTop(selectedTop);
+          setSuggestedBottom(selectedBottom);
+          return;
+        }
+        
+        attempts++;
+      }
+      
+      // Fallback: if no good pairing found, use first items
+      setSuggestedTop(filteredTops[0]);
+      setSuggestedBottom(filteredBottoms[0]);
+    };
+
+    // Simulate AI processing delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    generateSmartPairing();
+
+    setIsGenerating(false);
   };
 
   const selectedOccasion = OCCASIONS.find(o => o.value === occasion);
@@ -293,7 +308,8 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12 mt-8">
+        <div className="text-center my-12 pt-2">
+          
           <h1 className="text-6xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             Selection - Outfit creator 
           </h1>
@@ -564,16 +580,48 @@ export default function Home() {
           </div>
         )}
 
-        {/* Save Outfit Button */}
-        {suggestedTop && suggestedBottom && (
+        {/* Outfit Confirmation */}
+        {(suggestedTop || suggestedBottom) && (
           <div className="mt-8 text-center">
             <button
-              onClick={handleSaveOutfit}
-              className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 flex items-center space-x-2 mx-auto"
+              onClick={async () => {
+                if (!suggestedTop && !suggestedBottom) return;
+                
+                const itemIds = [
+                  ...(suggestedTop ? [suggestedTop.id] : []),
+                  ...(suggestedBottom ? [suggestedBottom.id] : [])
+                ];
+                
+                try {
+                  const response = await fetch('/api/usage/wear-confirmation', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${accessToken}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      itemIds,
+                      occasion
+                    })
+                  });
+                  
+                  if (response.ok) {
+                    alert('✅ Outfit confirmed! These items won\'t be suggested for 3 days.');
+                    setSuggestedTop(null);
+                    setSuggestedBottom(null);
+                  }
+                } catch (error) {
+                  console.error('Failed to confirm outfit:', error);
+                }
+              }}
+              className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-8 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 flex items-center justify-center space-x-2 mx-auto"
             >
-              <span>💾</span>
-              <span>Save This Outfit</span>
+              <span>✅</span>
+              <span>I Wore This Outfit</span>
             </button>
+            <p className="text-gray-400 text-sm mt-2">
+              Confirming prevents these items from being suggested for 3 days
+            </p>
           </div>
         )}
 
@@ -588,6 +636,7 @@ export default function Home() {
             </p>
           </div>
         )}
+
       </div>
     </div>
   );
