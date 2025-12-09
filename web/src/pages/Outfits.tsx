@@ -84,7 +84,7 @@ export default function Outfits() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">⏳</div>
-          <p className="text-gray-300">Loading your outfits...</p>
+          <p className="text-gray-700">Loading your outfits...</p>
         </div>
       </div>
     );
@@ -97,25 +97,25 @@ export default function Outfits() {
           {/* Header */}
           <div className="text-center mb-12">
             <div className="text-6xl mb-4">✨</div>
-            <h1 className="text-4xl font-bold text-white mb-4">Saved Outfits</h1>
-            <p className="text-gray-300 text-lg">📚 Your saved outfit combinations</p>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Saved Outfits</h1>
+            <p className="text-gray-700 text-lg">📚 Your saved outfit combinations</p>
           </div>
 
           {error && (
-            <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
-              <p className="text-red-300">{error}</p>
+            <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
+              <p className="text-red-700">{error}</p>
             </div>
           )}
 
           {/* Occasion Filters */}
-          <div className="mb-8 bg-gray-800/60 backdrop-blur-sm rounded-xl border border-gray-700 p-6">
+          <div className="mb-8 bg-stone-100/60 backdrop-blur-sm rounded-xl border border-stone-300 p-6">
             <div className="flex flex-wrap justify-center gap-3">
               <button
                 onClick={() => setSelectedOccasion(null)}
                 className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2 ${
                   selectedOccasion === null
-                    ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
-                    : 'bg-gray-700/50 text-gray-300 border border-gray-600 hover:bg-gray-600/50'
+                    ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                    : 'bg-stone-200/50 text-gray-700 border border-stone-300 hover:bg-stone-300/50'
                 }`}
               >
                 <span>👗</span>
@@ -129,8 +129,8 @@ export default function Outfits() {
                   )}
                   className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2 ${
                     selectedOccasion === occasion.value
-                      ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
-                      : 'bg-gray-700/50 text-gray-300 border border-gray-600 hover:bg-gray-600/50'
+                      ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                      : 'bg-stone-200/50 text-gray-700 border border-stone-300 hover:bg-stone-300/50'
                   }`}
                 >
                   <span>{occasion.emoji}</span>
@@ -144,11 +144,11 @@ export default function Outfits() {
           {outfits.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {outfits.map((outfit) => (
-                <div key={outfit.id} className="bg-gray-800/60 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden hover:transform hover:scale-105 transition-all duration-200 group relative">
+                <div key={outfit.id} className="bg-stone-100/60 backdrop-blur-sm rounded-xl border border-stone-300 overflow-hidden hover:transform hover:scale-105 transition-all duration-200 group relative">
                   {/* Delete Button */}
                   <button
                     onClick={() => handleDeleteOutfit(outfit.id)}
-                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500/80 text-white hover:bg-red-600 flex items-center justify-center transition-all duration-200 z-10 opacity-0 group-hover:opacity-100"
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white hover:bg-red-600 flex items-center justify-center transition-all duration-200 z-10 opacity-0 group-hover:opacity-100"
                   >
                     <span className="text-sm">🗑️</span>
                   </button>
@@ -156,12 +156,12 @@ export default function Outfits() {
                   {/* Outfit Content */}
                   <div className="p-6">
                     <div className="text-center">
-                      <h3 className="text-white font-medium mb-2">{outfit.name}</h3>
-                      
+                      <h3 className="text-gray-900 font-medium mb-2">{outfit.name}</h3>
+
                       {/* Occasion Badge */}
                       <div className="mb-4">
                         {OUTFIT_OCCASIONS.find(o => o.value === outfit.occasion) && (
-                          <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm">
+                          <span className="bg-blue-100 text-blue-900 px-3 py-1 rounded-full text-sm">
                             {OUTFIT_OCCASIONS.find(o => o.value === outfit.occasion)?.emoji} {OUTFIT_OCCASIONS.find(o => o.value === outfit.occasion)?.name}
                           </span>
                         )}
@@ -187,7 +187,7 @@ export default function Outfits() {
 
                       {/* Weather Info */}
                       {outfit.weather_temp && (
-                        <div className="text-xs text-gray-400 mb-2">
+                        <div className="text-xs text-gray-600 mb-2">
                           🌡️ {outfit.weather_temp}°F
                           {outfit.weather_description && ` • ${outfit.weather_description}`}
                         </div>
@@ -195,13 +195,13 @@ export default function Outfits() {
 
                       {/* Notes */}
                       {outfit.notes && (
-                        <div className="text-xs text-gray-400 italic mb-2">
+                        <div className="text-xs text-gray-600 italic mb-2">
                           "{outfit.notes}"
                         </div>
                       )}
 
                       {/* Date */}
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-600">
                         Saved {new Date(outfit.created_at).toLocaleDateString()}
                       </div>
 
@@ -219,16 +219,16 @@ export default function Outfits() {
           ) : (
             <div className="text-center py-16">
               <div className="text-8xl mb-6">📂</div>
-              <h3 className="text-2xl font-semibold text-white mb-4">No saved outfits yet</h3>
-              <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                {selectedOccasion 
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4">No saved outfits yet</h3>
+              <p className="text-gray-700 mb-8 max-w-md mx-auto">
+                {selectedOccasion
                   ? `No ${OUTFIT_OCCASIONS.find(o => o.value === selectedOccasion)?.name.toLowerCase()} outfits found`
                   : 'Start creating outfits on the home page and save your favorites here'
                 }
               </p>
               <button
                 onClick={() => setSelectedOccasion(null)}
-                className="bg-gray-700/50 hover:bg-gray-600/50 text-white px-6 py-2 rounded-xl font-medium transition-all duration-200 border border-gray-600"
+                className="bg-stone-200 hover:bg-stone-300 text-gray-900 px-6 py-2 rounded-xl font-medium transition-all duration-200 border border-stone-300"
               >
                 {selectedOccasion ? 'Show All Outfits' : 'Go to Home Page'}
               </button>

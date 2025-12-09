@@ -231,7 +231,7 @@ export default function Wardrobe() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">⏳</div>
-          <p className="text-gray-300">Loading your wardrobe...</p>
+          <p className="text-gray-700">Loading your wardrobe...</p>
         </div>
       </div>
     );
@@ -244,11 +244,11 @@ export default function Wardrobe() {
           {/* Header */}
           <div className="text-center mb-12">
             <div className="text-6xl mb-4">👔</div>
-            <h1 className="text-4xl font-bold text-white mb-4">Your Digital Wardrobe</h1>
-            <p className="text-gray-300 text-lg">📦 Organize, categorize, and manage your clothing collection</p>
+            <h1 className="text-4xl font-bold text-gray-800 mb-4">Your Digital Wardrobe</h1>
+            <p className="text-gray-700 text-lg">📦 Organize, categorize, and manage your clothing collection</p>
             {totalItems > 0 && (
               <div className="mt-4">
-                <span className="bg-blue-600/20 text-blue-300 px-4 py-2 rounded-full text-sm font-medium">
+                <span className="bg-blue-600/20 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
                   {totalItems} items in your wardrobe
                 </span>
               </div>
@@ -257,7 +257,7 @@ export default function Wardrobe() {
 
           {error && (
             <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
-              <p className="text-red-300">{error}</p>
+              <p className="text-red-700">{error}</p>
             </div>
           )}
           
@@ -274,10 +274,10 @@ export default function Wardrobe() {
                 }`}
               >
                 <div className="text-3xl mb-2">{category.emoji}</div>
-                <div className="text-2xl font-bold text-blue-400 mb-1">
+                <div className="text-2xl font-bold text-blue-700 mb-1">
                   {stats[category.id] || 0}
                 </div>
-                <div className="text-gray-300 text-sm">{category.name}</div>
+                <div className="text-gray-700 text-sm">{category.name}</div>
               </button>
             ))}
           </div>

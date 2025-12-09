@@ -11,9 +11,6 @@ router.use((req, res, next) => {
   next();
 });
 
-// Apply authentication to weather routes
-router.use(verifyToken);
-
 // Validation schemas
 const coordinatesSchema = z.object({
   lat: z.number().min(-90).max(90),

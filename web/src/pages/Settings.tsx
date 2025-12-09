@@ -37,52 +37,52 @@ export default function Settings() {
           {/* Header */}
           <div className="text-center mb-12">
             <div className="text-6xl mb-4">⚙️</div>
-            <h1 className="text-4xl font-bold text-white mb-4">Settings & Preferences</h1>
-            <p className="text-gray-300 text-lg">🛠️ Customize your Outfit Matcher experience</p>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Settings & Preferences</h1>
+            <p className="text-gray-700 text-lg">🛠️ Customize your Outfit Matcher experience</p>
           </div>
           
           <div className="space-y-8">
             {/* Profile Settings */}
-            <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700 p-8">
+            <div className="bg-stone-100/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-stone-300 p-8">
               <div className="flex items-center mb-6">
                 <span className="text-2xl mr-3">👤</span>
-                <h2 className="text-2xl font-semibold text-white">Profile Settings</h2>
+                <h2 className="text-2xl font-semibold text-gray-900">Profile Settings</h2>
               </div>
-              
+
               {error && (
-                <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-                  <p className="text-red-300 text-sm">{error}</p>
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-red-700 text-sm">{error}</p>
                 </div>
               )}
 
               {successMessage && (
-                <div className="mb-4 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                  <p className="text-green-300 text-sm">{successMessage}</p>
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+                  <p className="text-green-700 text-sm">{successMessage}</p>
                 </div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-800 mb-2">
                     📝 Name
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="Your name"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-800 mb-2">
                     📧 Email
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="your.email@example.com"
                   />
                 </div>
@@ -109,19 +109,19 @@ export default function Settings() {
             </div>
             
             {/* AI Preferences */}
-            <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700 p-8">
+            <div className="bg-stone-100/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-stone-300 p-8">
               <div className="flex items-center mb-6">
                 <span className="text-2xl mr-3">🤖</span>
-                <h2 className="text-2xl font-semibold text-white">AI Preferences</h2>
+                <h2 className="text-2xl font-semibold text-gray-900">AI Preferences</h2>
               </div>
-              
+
               <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gray-900/30 rounded-xl border border-gray-600">
+                <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-300">
                   <div className="flex items-center space-x-3">
                     <span className="text-xl">✨</span>
                     <div>
-                      <div className="text-white font-medium">AI Outfit Suggestions</div>
-                      <div className="text-gray-400 text-sm">Let AI create outfit combinations for you</div>
+                      <div className="text-gray-900 font-medium">AI Outfit Suggestions</div>
+                      <div className="text-gray-600 text-sm">Let AI create outfit combinations for you</div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -130,12 +130,12 @@ export default function Settings() {
                   </label>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-gray-900/30 rounded-xl border border-gray-600">
+                <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-300">
                   <div className="flex items-center space-x-3">
                     <span className="text-xl">🌡️</span>
                     <div>
-                      <div className="text-white font-medium">Weather Integration</div>
-                      <div className="text-gray-400 text-sm">Include weather data in outfit suggestions</div>
+                      <div className="text-gray-900 font-medium">Weather Integration</div>
+                      <div className="text-gray-600 text-sm">Include weather data in outfit suggestions</div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -144,12 +144,12 @@ export default function Settings() {
                   </label>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-gray-900/30 rounded-xl border border-gray-600">
+                <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-300">
                   <div className="flex items-center space-x-3">
                     <span className="text-xl">🔔</span>
                     <div>
-                      <div className="text-white font-medium">Daily Notifications</div>
-                      <div className="text-gray-400 text-sm">Get daily outfit suggestions and style tips</div>
+                      <div className="text-gray-900 font-medium">Daily Notifications</div>
+                      <div className="text-gray-600 text-sm">Get daily outfit suggestions and style tips</div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -158,12 +158,12 @@ export default function Settings() {
                   </label>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-gray-900/30 rounded-xl border border-gray-600">
+                <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-300">
                   <div className="flex items-center space-x-3">
                     <span className="text-xl">📈</span>
                     <div>
-                      <div className="text-white font-medium">Style Learning</div>
-                      <div className="text-gray-400 text-sm">Allow AI to learn from your preferences and choices</div>
+                      <div className="text-gray-900 font-medium">Style Learning</div>
+                      <div className="text-gray-600 text-sm">Allow AI to learn from your preferences and choices</div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -175,19 +175,19 @@ export default function Settings() {
             </div>
             
             {/* Data & Privacy */}
-            <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700 p-8">
+            <div className="bg-stone-100/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-stone-300 p-8">
               <div className="flex items-center mb-6">
                 <span className="text-2xl mr-3">🔒</span>
-                <h2 className="text-2xl font-semibold text-white">Data & Privacy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900">Data & Privacy</h2>
               </div>
-              
+
               <div className="space-y-4">
-                <button className="w-full md:w-auto bg-gray-700/80 hover:bg-gray-600/80 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 border border-gray-600 flex items-center space-x-2">
+                <button className="w-full md:w-auto bg-stone-200/80 hover:bg-stone-300/80 text-gray-900 px-6 py-3 rounded-xl font-medium transition-all duration-200 border border-stone-300 flex items-center space-x-2">
                   <span>📥</span>
                   <span>Export My Data</span>
                 </button>
-                
-                <button className="w-full md:w-auto bg-red-600/20 hover:bg-red-600/30 text-red-300 px-6 py-3 rounded-xl font-medium transition-all duration-200 border border-red-500/30 flex items-center space-x-2">
+
+                <button className="w-full md:w-auto bg-red-100 hover:bg-red-200 text-red-800 px-6 py-3 rounded-xl font-medium transition-all duration-200 border border-red-300 flex items-center space-x-2">
                   <span>🗑️</span>
                   <span>Delete Account</span>
                 </button>

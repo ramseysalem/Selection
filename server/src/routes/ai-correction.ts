@@ -109,6 +109,13 @@ router.post('/reanalyze-item/:itemId', verifyToken, async (req: AuthRequest, res
     // Import AI service here to avoid circular imports
     const { aiVisionService } = await import('../services/aiVisionService');
     
+    // Only re-analyze if we have image data (database storage)
+    if (!item.image_data || !item.image_mime_type) {
+      return res.status(400).json({ 
+        error: 'Cannot re-analyze item - no image data available (S3 items not supported yet)' 
+      });
+    }
+
     // Re-analyze the image with improved prompt
     const analysis = await aiVisionService.analyzeClothingImage(
       item.image_data, 

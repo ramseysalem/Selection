@@ -5,6 +5,7 @@ import { verifyToken, AuthRequest } from '../middleware/auth';
 import { wardrobeStore, ClothingCategory, ClothingSubcategory, Season, Occasion } from '../models/WardrobeItemPG';
 import { aiVisionService } from '../services/aiVisionService';
 import { hybridOutfitMatcher } from '../services/hybridOutfitMatcher';
+import { imageStorageService } from '../services/imageStorageService';
 
 const router = express.Router();
 
@@ -41,24 +42,24 @@ const createWardrobeItemSchema = z.object({
 
 const updateWardrobeItemSchema = createWardrobeItemSchema.partial();
 
-// Get wardrobe item image (public endpoint - no auth required for images)
+// Get wardrobe item image (public endpoint - redirects to S3)
 router.get('/:id/image', async (req, res) => {
   try {
     const item = await wardrobeStore.findById(req.params.id);
-    
+
     if (!item) {
       return res.status(404).json({ error: 'Wardrobe item not found' });
     }
 
-    // No authentication check - images are public once you have the ID
+    // All images are now on S3 - redirect to the S3 URL
+    if (item.image_url) {
+      console.log(`🔗 [IMAGE] Redirecting to S3: ${item.image_url}`);
+      return res.redirect(item.image_url);
+    }
 
-    res.set({
-      'Content-Type': item.image_mime_type,
-      'Content-Length': item.image_data.length,
-      'Cache-Control': 'public, max-age=86400' // Cache for 1 day
-    });
+    // No image found
+    return res.status(404).json({ error: 'Image not found' });
 
-    res.send(item.image_data);
   } catch (error) {
     console.error('Get wardrobe item image error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -186,14 +187,28 @@ router.post('/items', upload.single('image'), async (req: AuthRequest, res) => {
       // Validate the combined data
       const validatedData = createWardrobeItemSchema.parse(itemData);
 
+      // Upload image using the storage service
+      console.log('📁 [STORAGE] Uploading image...');
+      const imageResult = await imageStorageService.uploadImage(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        req.user!.id
+      );
+
+      console.log(`✅ [STORAGE] Image uploaded via ${imageResult.storageType}`);
+
       const newItem = await wardrobeStore.create({
         ...validatedData,
         category: validatedData.category!, // TypeScript assertion - we ensured this exists above
         color_primary: validatedData.color_primary!, // TypeScript assertion - we ensured this exists above
         user_id: req.user!.id,
-        image_data: req.file.buffer,
-        image_mime_type: req.file.mimetype,
-        image_filename: req.file.originalname,
+        // S3 storage only (no database storage)
+        image_url: imageResult.url,
+        image_s3_key: imageResult.s3Key,
+        thumbnail_url: imageResult.thumbnailUrl,
+        image_optimized_size: imageResult.size,
+        storage_type: 's3',
         // Initialize AI fields (will be populated by batch processing)
         ai_analyzed: false,
         ai_confidence: undefined,
@@ -224,7 +239,7 @@ router.post('/items', upload.single('image'), async (req: AuthRequest, res) => {
 
     } catch (aiError) {
       console.warn('⚠️ AI analysis failed, falling back to manual input:', aiError);
-      
+
       // Create fallback data structure when AI fails
       const fallbackData = {
         ...userInput,
@@ -232,24 +247,36 @@ router.post('/items', upload.single('image'), async (req: AuthRequest, res) => {
         season: [Season.ALL_SEASONS],
         occasion: [Occasion.CASUAL]
       };
-      
+
       // Ensure required fields are present for bulk uploads when AI fails
       if (!fallbackData.category) {
         fallbackData.category = ClothingCategory.TOPS; // Default fallback
         console.warn('⚠️ No category provided in manual input, using default: TOPS');
       }
-      
+
       // Fallback to manual input if AI fails
       const validatedData = createWardrobeItemSchema.parse(fallbackData);
+
+      // Still upload image to S3 even if AI fails
+      console.log('📁 [STORAGE] Uploading image to S3 (AI failed)...');
+      const imageResult = await imageStorageService.uploadImage(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        req.user!.id
+      );
 
       const newItem = await wardrobeStore.create({
         ...validatedData,
         category: validatedData.category!, // TypeScript assertion - we ensured this exists above
         color_primary: validatedData.color_primary!, // TypeScript assertion - we ensured this exists above
         user_id: req.user!.id,
-        image_data: req.file.buffer,
-        image_mime_type: req.file.mimetype,
-        image_filename: req.file.originalname,
+        // S3 storage only
+        image_url: imageResult.url,
+        image_s3_key: imageResult.s3Key,
+        thumbnail_url: imageResult.thumbnailUrl,
+        image_optimized_size: imageResult.size,
+        storage_type: 's3',
         // Initialize AI fields (will be populated by batch processing)
         ai_analyzed: false,
         ai_confidence: undefined,
@@ -263,9 +290,9 @@ router.post('/items', upload.single('image'), async (req: AuthRequest, res) => {
 
       // Return item without image data for response
       const { image_data, ...itemResponse } = newItem;
-      
-      res.status(201).json({ 
-        message: 'Wardrobe item created successfully (manual input)', 
+
+      res.status(201).json({
+        message: 'Wardrobe item created successfully (manual input)',
         item: itemResponse,
         ai_analysis: {
           error: 'AI analysis unavailable',
@@ -309,7 +336,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 router.put('/:id', upload.single('image'), async (req: AuthRequest, res) => {
   try {
     const item = await wardrobeStore.findById(req.params.id);
-    
+
     if (!item) {
       return res.status(404).json({ error: 'Wardrobe item not found' });
     }
@@ -318,15 +345,40 @@ router.put('/:id', upload.single('image'), async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const validatedData = updateWardrobeItemSchema.parse(JSON.parse(req.body.data || '{}'));
-    
+    // Handle both JSON body and FormData with nested JSON string
+    let updateData = {};
+    if (req.body.data) {
+      // FormData: data is sent as a stringified JSON
+      try {
+        updateData = JSON.parse(req.body.data);
+      } catch (parseError) {
+        console.error('Failed to parse req.body.data:', parseError);
+        return res.status(400).json({ error: 'Invalid JSON in data field' });
+      }
+    } else if (Object.keys(req.body).length > 0) {
+      // Direct JSON body (without file upload)
+      updateData = req.body;
+    }
+
+    const validatedData = updateWardrobeItemSchema.parse(updateData);
+
     const updates: any = { ...validatedData };
-    
-    // If new image is uploaded, update image data
+
+    // If new image is uploaded, upload to S3
     if (req.file) {
-      updates.image_data = req.file.buffer;
-      updates.image_mime_type = req.file.mimetype;
-      updates.image_filename = req.file.originalname;
+      console.log('📁 [STORAGE] Uploading updated image to S3...');
+      const imageResult = await imageStorageService.uploadImage(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        req.user!.id
+      );
+
+      updates.image_url = imageResult.url;
+      updates.image_s3_key = imageResult.s3Key;
+      updates.thumbnail_url = imageResult.thumbnailUrl;
+      updates.image_optimized_size = imageResult.size;
+      updates.storage_type = 's3';
     }
 
     const updatedItem = await wardrobeStore.update(req.params.id, updates);
@@ -355,7 +407,7 @@ router.put('/:id', upload.single('image'), async (req: AuthRequest, res) => {
 router.delete('/:id', async (req: AuthRequest, res) => {
   try {
     const item = await wardrobeStore.findById(req.params.id);
-    
+
     if (!item) {
       return res.status(404).json({ error: 'Wardrobe item not found' });
     }
@@ -364,13 +416,25 @@ router.delete('/:id', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    // Delete image from S3 if it exists
+    if (item.storage_type === 's3' && item.image_s3_key) {
+      try {
+        console.log(`🗑️ [S3] Deleting image from S3: ${item.image_s3_key}`);
+        await imageStorageService.deleteImage(item);
+      } catch (s3Error) {
+        console.warn(`⚠️ [S3] Failed to delete from S3, continuing with DB delete:`, s3Error);
+        // Don't fail the whole operation if S3 delete fails
+      }
+    }
+
+    // Delete from database
     const deleted = await wardrobeStore.delete(req.params.id);
-    
+
     if (!deleted) {
       return res.status(500).json({ error: 'Failed to delete item' });
     }
 
-    res.json({ message: 'Wardrobe item deleted successfully' });
+    res.json({ message: 'Wardrobe item and associated images deleted successfully' });
   } catch (error) {
     console.error('Delete wardrobe item error:', error);
     res.status(500).json({ error: 'Internal server error' });

@@ -67,10 +67,13 @@ export default function Home() {
 
   // Get user's location
   const getUserLocation = () => {
+    console.log('🗺️ getUserLocation button clicked');
     if ('geolocation' in navigator) {
+      console.log('✅ Geolocation is available');
       setIsLoadingWeather(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          console.log('📍 Got position:', position.coords);
           const coords = {
             lat: position.coords.latitude,
             lon: position.coords.longitude
@@ -79,10 +82,26 @@ export default function Home() {
           fetchWeatherByCoordinates(coords.lat, coords.lon);
         },
         (error) => {
-          console.error('Geolocation error:', error);
+          console.error('❌ Geolocation error:', error);
+          console.error('Error code:', error.code);
+          console.error('Error message:', error.message);
+          
+          let errorMsg = 'Location access failed';
+          if (error.code === 1) errorMsg = 'Location access denied. Please enable location permissions.';
+          if (error.code === 2) errorMsg = 'Location unavailable. Try entering your city manually.';
+          if (error.code === 3) errorMsg = 'Location request timed out. Try again.';
+          
+          alert(errorMsg);
           setIsLoadingWeather(false);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 60000
         }
       );
+    } else {
+      console.error('❌ Geolocation not available');
     }
   };
 
@@ -309,11 +328,14 @@ export default function Home() {
       <div className="w-full max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center my-12 pt-2">
-          
-          <h1 className="text-6xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Selection - Outfit creator 
-          </h1>
-          <p className="text-gray-300 text-lg">
+          <div className="flex flex-col items-center mb-6">
+            <img 
+              src="/SelectionLogo.png" 
+              alt="Selection Logo" 
+              className="h-32 mb-6 drop-shadow-lg"
+            />
+          </div>
+          <p className="text-gray-700 text-lg">
             Get personalized outfit suggestions based on weather, occasion, and your wardrobe 
           </p>
         </div>
@@ -437,8 +459,8 @@ export default function Home() {
 
             {outfitContext && (
               <div className="mt-4 p-4 bg-gray-900/50 rounded-xl">
-                <h4 className="text-sm font-medium text-gray-300 mb-2">Outfit Recommendations</h4>
-                <div className="flex flex-wrap gap-2 text-xs">
+                <h4 className="text-sm font-medium text-gray-300 mb-2 text-center">Outfit Recommendations</h4>
+                <div className="flex flex-wrap gap-2 text-xs justify-center">
                   <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded-full">
                     {outfitContext.temperature} weather
                   </span>

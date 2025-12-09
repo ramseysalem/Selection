@@ -154,4 +154,26 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000); // Every 5 minutes
 
+// Debug function to inspect current violations
+export const getViolationsDebugInfo = () => {
+  const now = new Date();
+  const debugInfo: any[] = [];
+  
+  for (const [ip, data] of suspiciousIPs.entries()) {
+    debugInfo.push({
+      ip,
+      violations: data.violations,
+      blocked: data.blockedUntil ? data.blockedUntil > now : false,
+      blockedUntil: data.blockedUntil?.toISOString(),
+      timeUntilUnblock: data.blockedUntil ? Math.max(0, Math.ceil((data.blockedUntil.getTime() - now.getTime()) / 60000)) : 0
+    });
+  }
+  
+  return {
+    totalTrackedIPs: suspiciousIPs.size,
+    violations: debugInfo,
+    currentTime: now.toISOString()
+  };
+};
+
 export { suspiciousIPs };

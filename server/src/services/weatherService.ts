@@ -49,36 +49,62 @@ class WeatherService {
       
       console.log(`🌤️ [WEATHER] API URL:`, url);
       
-      const response = await fetch(url);
+      // Retry logic for flaky connections
+      let lastError;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`🌤️ [WEATHER] Attempt ${attempt}/3...`);
+          const response = await fetch(url, {
+            signal: AbortSignal.timeout(20000), // 20 second timeout
+            headers: {
+              'User-Agent': 'OutfitMatcher/1.0 (https://outfitmatcher.app)'
+            }
+          });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`🌤️ [WEATHER] API Error (${response.status}):`, errorText);
-        throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`🌤️ [WEATHER] API Error (${response.status}):`, errorText);
+            throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          
+          // Check for API errors
+          if ((data as any).error) {
+            console.error(`🌤️ [WEATHER] Open-Meteo Error:`, (data as any).reason);
+            throw new Error(`Weather API error: ${(data as any).reason}`);
+          }
+          
+          console.log(`🌤️ [WEATHER] API Response received successfully`);
+          
+          const weatherData = this.parseOpenMeteoResponse(data);
+
+          // Cache for 15 minutes
+          this.cache.set(cacheKey, {
+            data: weatherData,
+            expires: new Date(Date.now() + 15 * 60 * 1000)
+          });
+
+          console.log(`✅ [WEATHER] Successfully fetched: ${weatherData.temperature}°F, ${weatherData.description}`);
+          return weatherData;
+
+        } catch (error) {
+          lastError = error;
+          console.warn(`🌤️ [WEATHER] Attempt ${attempt}/3 failed:`, error instanceof Error ? error.message : String(error));
+          
+          if (attempt < 3) {
+            const delay = attempt * 1000; // 1s, 2s delay between retries
+            console.log(`🌤️ [WEATHER] Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
       }
-
-      const data = await response.json();
       
-      // Check for API errors
-      if ((data as any).error) {
-        console.error(`🌤️ [WEATHER] Open-Meteo Error:`, (data as any).reason);
-        throw new Error(`Weather API error: ${(data as any).reason}`);
-      }
-      
-      console.log(`🌤️ [WEATHER] API Response:`, JSON.stringify(data, null, 2));
-      
-      const weatherData = this.parseOpenMeteoResponse(data);
-
-      // Cache for 15 minutes
-      this.cache.set(cacheKey, {
-        data: weatherData,
-        expires: new Date(Date.now() + 15 * 60 * 1000)
-      });
-
-      console.log(`✅ [WEATHER] Successfully fetched: ${weatherData.temperature}°F, ${weatherData.description}`);
-      return weatherData;
+      // All attempts failed
+      console.error('🌤️ [WEATHER] All retry attempts failed:', lastError);
+      throw lastError;
     } catch (error) {
-      console.error('🌤️ [WEATHER] Fetch error:', error);
+      console.error('🌤️ [WEATHER] Unexpected error:', error);
       throw error;
     }
   }
@@ -122,7 +148,13 @@ class WeatherService {
       console.log(`🌍 [GEOCODING] Looking up coordinates for: ${cityName}`);
       
       const response = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`,
+        {
+          signal: AbortSignal.timeout(15000), // 15 second timeout for geocoding
+          headers: {
+            'User-Agent': 'OutfitMatcher/1.0 (https://outfitmatcher.app)'
+          }
+        }
       );
 
       if (!response.ok) {

@@ -35,6 +35,7 @@ export default function WardrobeItemCard({
 
   const handleToggleFavorite = async () => {
     try {
+      // Send as JSON directly (not FormData) for non-file updates
       const response = await fetch(`/api/wardrobe/${item.id}`, {
         method: 'PUT',
         headers: {
@@ -42,12 +43,15 @@ export default function WardrobeItemCard({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          data: JSON.stringify({ is_favorite: !item.is_favorite })
+          is_favorite: !item.is_favorite
         })
       });
 
       if (response.ok) {
+        console.log(`✅ Favorite toggled for ${item.id}`);
         onToggleFavorite(item.id);
+      } else {
+        console.error('Failed to toggle favorite:', await response.json());
       }
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
@@ -72,7 +76,7 @@ export default function WardrobeItemCard({
         
         {!imageError ? (
           <img
-            src={`/api/wardrobe/${item.id}/image`}
+            src={item.thumbnail_url || `/api/wardrobe/${item.id}/image`}
             alt={item.name}
             className={`w-full h-full object-cover transition-opacity duration-300 ${
               imageLoaded ? 'opacity-100' : 'opacity-0'

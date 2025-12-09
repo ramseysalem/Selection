@@ -15,7 +15,8 @@ import {
   uploadLimiter, 
   apiLimiter, 
   aiLimiter, 
-  weatherLimiter 
+  weatherLimiter,
+  getViolationsDebugInfo
 } from './middleware/rateLimiting';
 
 // Load environment variables
@@ -83,6 +84,50 @@ app.use('/api/ai-test', aiLimiter, aiTestRoutes); // AI processing
 app.use('/api/batch', aiLimiter, batchRoutes); // Batch AI processing
 app.use('/api/ai-correction', aiLimiter, aiCorrectionRoutes); // AI processing
 app.use('/api/usage', apiLimiter, require('./routes/usage').default); // Usage tracking
+
+// Debug endpoints (development only)
+app.get('/api/debug/rate-limits', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  
+  const violations = getViolationsDebugInfo();
+  res.json(violations);
+});
+
+// Import image storage service for debug endpoints
+import { imageStorageService } from './services/imageStorageService';
+
+app.get('/api/debug/storage', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  
+  try {
+    const migrationStatus = await imageStorageService.getMigrationStatus();
+    res.json({
+      storage: {
+        type: process.env.STORAGE_TYPE || 'database',
+        migration: migrationStatus
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get storage status' });
+  }
+});
+
+app.post('/api/debug/migrate/:itemId', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  
+  try {
+    const success = await imageStorageService.migrateToS3(req.params.itemId);
+    res.json({ success, itemId: req.params.itemId });
+  } catch (error) {
+    res.status(500).json({ error: 'Migration failed', details: error instanceof Error ? error.message : String(error) });
+  }
+});
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

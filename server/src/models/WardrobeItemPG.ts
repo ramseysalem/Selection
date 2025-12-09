@@ -13,9 +13,16 @@ export interface WardrobeItem {
   material?: string;
   season: Season[];
   occasion: Occasion[];
-  image_data: Buffer;
-  image_mime_type: string;
-  image_filename: string;
+  // Legacy database storage (will be deprecated)
+  image_data?: Buffer;
+  image_mime_type?: string;
+  image_filename?: string;
+  // New S3 storage
+  image_url?: string;
+  image_s3_key?: string;
+  thumbnail_url?: string;
+  image_optimized_size?: number;
+  storage_type?: 'database' | 's3' | 'hybrid';
   tags: string[];
   is_favorite: boolean;
   purchase_date?: string;

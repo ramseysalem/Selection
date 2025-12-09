@@ -11,8 +11,10 @@ export interface WardrobeItem {
   material?: string;
   season: Season[];
   occasion: Occasion[];
-  image_filename: string;
-  image_mime_type: string;
+  image_filename?: string;
+  image_mime_type?: string;
+  image_url?: string;
+  thumbnail_url?: string;
   tags: string[];
   is_favorite: boolean;
   purchase_date?: string;
@@ -139,7 +141,7 @@ export const CLOTHING_CATEGORIES: CategoryInfo[] = [
     subcategories: [
       { id: ClothingSubcategory.JEANS, name: 'Jeans', emoji: '👖' },
       { id: ClothingSubcategory.PANTS, name: 'Pants', emoji: '👖' },
-      { id: ClothingSubcategory.SHORTS, name: 'Shorts', emoji: '🩳' },
+      { id: ClothingSubcategory.SHORTS, name: 'Shorts', emoji: '👖' },
       { id: ClothingSubcategory.SKIRTS, name: 'Skirts', emoji: '👗' },
       { id: ClothingSubcategory.LEGGINGS, name: 'Leggings', emoji: '👖' },
       { id: ClothingSubcategory.DRESS_PANTS, name: 'Dress Pants', emoji: '👔' },
@@ -156,7 +158,7 @@ export const CLOTHING_CATEGORIES: CategoryInfo[] = [
       { id: ClothingSubcategory.BOOTS, name: 'Boots', emoji: '👢' },
       { id: ClothingSubcategory.SANDALS, name: 'Sandals', emoji: '👡' },
       { id: ClothingSubcategory.HEELS, name: 'Heels', emoji: '👠' },
-      { id: ClothingSubcategory.FLATS, name: 'Flats', emoji: '🥿' },
+      { id: ClothingSubcategory.FLATS, name: 'Flats', emoji: '👟' },
     ]
   },
   {
